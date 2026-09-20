@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Varanasi Urban Flood Nowcasting Portal | Team Vertex</title>
+
+<!-- Leaflet gives us a real, interactive Varanasi map. Internet is required for map tiles. -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+:root{
+ --navy:#06345f;--navy2:#09284a;--blue:#0b63b6;--sky:#eaf4fb;
+ --line:#d7e1ea;--text:#1f2933;--muted:#5d6b78;--white:#fff;
+ --green:#17824b;--orange:#d97706;--red:#c62828;--yellow:#c58b00;
+ --saffron:#f28c28;--shadow:0 5px 18px #18324d18;
+}
+*{box-sizing:border-box}
+body{margin:0;color:var(--text);font-family:"Segoe UI",Arial,sans-serif;background:#f4f7fa}
+button,input,select{font:inherit}button{cursor:pointer}
+.govbar{background:#f7f7f7;border-bottom:1px solid #ddd;font-size:12px;color:#39444e}
+.govbar .inner,.header .inner,.nav .inner,.container{max-width:1550px;margin:auto}
+.govbar .inner{height:34px;display:flex;justify-content:space-between;align-items:center;padding:0 20px}
+.govlinks{display:flex;gap:18px}.govlinks span{cursor:pointer}.govlinks span:hover{text-decoration:underline}
+.header{background:white;border-top:4px solid var(--saffron);border-bottom:1px solid var(--line)}
+.header .inner{min-height:82px;padding:10px 20px;display:flex;align-items:center;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:13px}
+.emblem{width:54px;height:54px;border:2px solid var(--navy);border-radius:50%;display:grid;place-items:center;font-weight:900;color:var(--navy);font-size:9px;text-align:center}
+.brand h1{font-size:20px;color:var(--navy);margin:0}.brand p{font-size:12px;margin:4px 0 0;color:var(--muted)}
+.header-right{text-align:right}.header-right strong{display:block;color:var(--navy);font-size:13px}.header-right span{font-size:11px;color:var(--muted)}
+.nav{background:var(--navy);box-shadow:0 2px 5px #0002}.nav .inner{display:flex;align-items:center;overflow:auto}
+.nav button{color:white;background:transparent;border:0;padding:13px 17px;font-size:13px;white-space:nowrap;border-bottom:3px solid transparent}
+.nav button:hover,.nav button.active{background:#0b477c;border-bottom-color:#f6a23a}
+.container{padding:19px 20px 30px}
+.crumb{font-size:12px;color:var(--muted);margin-bottom:11px}.crumb b{color:var(--blue)}
+.notice{background:#fff8e8;border:1px solid #f1d49a;border-left:4px solid var(--orange);padding:10px 13px;font-size:12px;margin-bottom:14px;display:flex;justify-content:space-between;gap:10px;align-items:center}
+.notice button{border:0;background:transparent;color:var(--navy);font-weight:700}
+.page{display:none}.page.active{display:block}
+.pagehead{display:flex;justify-content:space-between;align-items:end;gap:15px;margin-bottom:14px}
+.pagehead h2{margin:0;color:var(--navy);font-size:25px}.pagehead p{margin:5px 0 0;color:var(--muted);font-size:13px}
+.actions{display:flex;gap:7px;flex-wrap:wrap}.btn{border:1px solid #b9c8d5;background:white;color:var(--navy);padding:8px 12px;border-radius:4px;font-size:12px}
+.btn:hover{background:#eef5fa}.btn.primary{background:var(--blue);color:white;border-color:var(--blue)}.btn.danger{color:var(--red);border-color:#e5b7b7}
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:14px}
+.kpi{background:white;border:1px solid var(--line);border-top:4px solid var(--blue);padding:13px;box-shadow:var(--shadow)}
+.kpi:nth-child(2){border-top-color:var(--orange)}.kpi:nth-child(3){border-top-color:var(--green)}.kpi:nth-child(4){border-top-color:var(--red)}.kpi:nth-child(5){border-top-color:#7654a5}
+.kpi .label{font-size:11px;color:var(--muted);text-transform:uppercase}.kpi .value{font-size:25px;font-weight:700;color:var(--navy);margin:5px 0}.kpi .sub{font-size:10px;color:var(--muted)}
+.grid{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(330px,.75fr);gap:14px}
+.panel{background:white;border:1px solid var(--line);box-shadow:var(--shadow)}
+.panelhead{padding:12px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+.panelhead h3{margin:0;font-size:15px;color:var(--navy)}.panelhead small{color:var(--muted);font-size:11px}
+#map{height:600px;width:100%;z-index:1}
+.map-toolbar{position:absolute;top:86px;right:12px;z-index:800;display:flex;gap:6px;flex-wrap:wrap;max-width:290px;justify-content:flex-end}
+.map-toolbar button{background:white;border:1px solid #b7c7d3;border-radius:4px;padding:7px 9px;font-size:10px;color:var(--navy);box-shadow:0 2px 7px #0002}
+.map-toolbar button.active{background:var(--blue);color:white}
+.map-overlay{position:absolute;z-index:800;left:12px;bottom:12px;background:#fffffff2;border:1px solid #b8c8d3;padding:10px;font-size:10px;box-shadow:0 2px 8px #0002}
+.map-overlay b{color:var(--navy)}.legendline{margin:5px 0}.legendline i{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:5px;vertical-align:-2px}
+.map-note{position:absolute;top:86px;left:12px;z-index:800;background:#fffffff2;border:1px solid #b8c8d3;padding:9px;font-size:10px;box-shadow:0 2px 8px #0002}
+.right{display:grid;gap:14px;align-content:start}.box{padding:14px}
+.status{display:flex;align-items:center;gap:7px}.statusdot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 7px #1a9a5c}
+.forecast{height:175px;display:flex;align-items:end;gap:6px;padding:15px}.bar{flex:1;background:linear-gradient(#2a8cd0,#76bde8);position:relative;min-height:10px;border-radius:3px 3px 0 0}
+.bar b{position:absolute;top:-17px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--navy)}.bar small{position:absolute;bottom:-19px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--muted)}
+.row{display:grid;grid-template-columns:1fr 80px 48px;gap:8px;align-items:center;font-size:11px;margin:11px 0}.progress{height:7px;background:#e8eef3;border-radius:6px;overflow:hidden}.progress span{display:block;height:100%}
+.route{background:#f5fbf7;border:1px solid #b8ddc8}.route strong{font-size:12px;color:#16653d}.route p{font-size:11px;line-height:1.5;color:var(--muted)}.route .routebtn{background:var(--green);color:white;border:0;padding:8px 11px;border-radius:4px;font-size:11px}
+.lower{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:14px}.form{padding:15px}.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field label{display:block;font-size:10px;color:var(--muted);margin-bottom:4px}.field input,.field select{width:100%;border:1px solid #bdcad5;border-radius:4px;padding:8px;background:white}
+.range{width:100%;accent-color:var(--blue)}.pipeline{display:grid;grid-template-columns:repeat(6,1fr);gap:7px;margin-top:13px}
+.pipe{background:#f7fafc;border:1px solid var(--line);padding:9px 5px;text-align:center;font-size:10px;color:var(--navy)}.pipe b{display:block;font-size:11px;margin-bottom:3px}
+.tabs{display:flex;border-bottom:1px solid var(--line);background:#f8fafc}.tabs button{flex:1;border:0;padding:9px;background:transparent;color:var(--muted);font-size:11px}.tabs button.active{color:var(--blue);font-weight:700;border-bottom:2px solid var(--blue)}
+.alerttable{width:100%;border-collapse:collapse;font-size:11px}.alerttable th,.alerttable td{padding:8px;border-bottom:1px solid var(--line);text-align:left}.alerttable th{color:var(--muted);font-size:10px;background:#f7f9fb}
+.badge{padding:3px 7px;border-radius:10px;font-size:9px;font-weight:700}.bh{background:#fde8e8;color:var(--red)}.bm{background:#fff3d8;color:#986800}.bl{background:#e6f5ed;color:var(--green)}
+.modal{position:fixed;inset:0;background:#00111c88;display:none;place-items:center;z-index:2000}.modal.show{display:grid}.modalbox{background:white;width:min(650px,92vw);border-radius:7px;box-shadow:0 20px 60px #0004;overflow:hidden}.modalhead{background:var(--navy);color:white;padding:14px 18px;display:flex;justify-content:space-between}.modalbody{padding:18px}.close{background:transparent;border:0;color:white;font-size:20px}
+.toast{position:fixed;right:18px;bottom:18px;background:var(--navy);color:white;padding:11px 15px;border-radius:4px;box-shadow:var(--shadow);display:none;z-index:3000;font-size:12px}.toast.show{display:block}
+.route-summary{background:#f7fafc;border:1px solid var(--line);padding:14px;margin-top:15px}.route-summary h4{margin:0;color:var(--navy)}.route-summary p{font-size:12px;color:var(--muted);line-height:1.6}
+@media(max-width:1150px){.kpis{grid-template-columns:repeat(3,1fr)}.grid{grid-template-columns:1fr}.lower{grid-template-columns:1fr}}
+@media(max-width:700px){.kpis{grid-template-columns:1fr 1fr}.pagehead{align-items:flex-start;flex-direction:column}.pipeline{grid-template-columns:repeat(3,1fr)}.formgrid{grid-template-columns:1fr}.container{padding:12px}#map{height:470px}.header-right{display:none}}
+</style>
+</head>
+<body>
+
+<div class="govbar"><div class="inner">
+ <span>भारत सरकार | Government of India</span>
+ <div class="govlinks">
+   <span onclick="toast('Accessibility options available in the portal')">Accessibility</span>
+   <span onclick="changeFont(1)">A+</span><span onclick="changeFont(-1)">A−</span>
+   <span onclick="toast('English / हिन्दी interface can be added')">हिन्दी | English</span>
+ </div>
+</div></div>
+
+<header class="header"><div class="inner">
+ <div class="brand">
+  <div class="emblem">भारत<br>GOV<br>🇮🇳</div>
+  <div><h1>National Urban Flood Nowcasting Portal</h1><p> City Flood Decision Support • AI + GIS + Rainfall + Drainage Coupling</p></div>
+ </div>
+ <div class="header-right"><strong>SMART INDIA HACKATHON 2026</strong><span>PS 26085 • Disaster Management • Team Vertex</span></div>
+</div></header>
+
+<nav class="nav"><div class="inner">
+ <button class="active" onclick="showPage('dashboard',this)">Dashboard</button>
+ <button onclick="showPage('nowcast',this)">0–3 hr Nowcast</button>
+ <button onclick="showPage('drainage',this)">Drainage Network</button>
+ <button onclick="showPage('routes',this)">Flood-Safe Routes</button>
+ <button onclick="showPage('alerts',this)">Alerts & Reports</button>
+ <button onclick="showPage('about',this)">System Information</button>
+</div></nav>
+
+<div class="container">
+<div class="crumb">Home / Varanasi / <b id="crumb">Dashboard</b></div>
+<div class="notice"><span><b>VARANASI PROTOTYPE:</b> the basemap is real OpenStreetMap data centered on Varanasi. Flood-depth, rainfall and drainage values shown as red/yellow/green scenario layers are simulated demonstration values until validated agency feeds are connected.</span><button onclick="this.parentElement.remove()">Dismiss ×</button></div>
+
+<section id="dashboard" class="page active">
+<div class="pagehead"><div><h2>Varanasi Urban Flood Situation Dashboard</h2><p>City-level view • Varanasi, Uttar Pradesh • Representative flood scenario for SIH demonstration</p></div>
+<div class="actions"><button class="btn" onclick="locateVaranasi()">📍 Varanasi</button><button class="btn" onclick="openModal('dataModal')">Data Sources</button><button class="btn primary" onclick="runNowcast()">Run Nowcast</button></div></div>
+
+<div class="kpis">
+ <div class="kpi"><div class="label">Rainfall intensity</div><div class="value" id="rainKpi">62 mm/hr</div><div class="sub">Scenario rainfall input</div></div>
+ <div class="kpi"><div class="label">Max predicted depth</div><div class="value" id="depthKpi">32 cm</div><div class="sub">Road-level estimate</div></div>
+ <div class="kpi"><div class="label">Drainage load</div><div class="value" id="loadKpi">78%</div><div class="sub">Peak network utilization</div></div>
+ <div class="kpi"><div class="label">Overall risk</div><div class="value" id="riskKpi" style="color:var(--red)">HIGH</div><div class="sub">Next 60 minutes</div></div>
+ <div class="kpi"><div class="label">Affected segments</div><div class="value" id="roadsKpi">7</div><div class="sub">Scenario output</div></div>
+</div>
+
+<div class="grid">
+<div class="panel">
+ <div class="panelhead"><h3>GIS Flood Risk Map — Varanasi</h3><small>Real basemap • scenario overlays</small></div>
+ <div style="position:relative">
+  <div id="map"></div>
+  <div class="map-note"><b>VARANASI CITY</b><br>Rainfall → Runoff → Drainage → Flood Depth</div>
+  <div class="map-toolbar">
+   <button onclick="toggleLayer('flood')" id="floodBtn" class="active">Flood Zones</button>
+   <button onclick="toggleLayer('drain')" id="drainBtn">Drainage</button>
+   <button onclick="toggleLayer('points')" id="pointsBtn" class="active">Risk Points</button>
+   <button onclick="locateVaranasi()">City View</button>
+  </div>
+  <div class="map-overlay">
+   <b>Flood-depth legend</b>
+   <div class="legendline"><i style="background:#c62828"></i>High &gt;20 cm</div>
+   <div class="legendline"><i style="background:#e6ad00"></i>Medium 10–20 cm</div>
+   <div class="legendline"><i style="background:#17824b"></i>Low 0–10 cm</div>
+   <div style="margin-top:7px;color:#6a7782">⚠ Scenario layer — not an official flood warning</div>
+  </div>
+ </div>
+</div>
+
+<div class="right">
+ <div class="panel">
+  <div class="panelhead"><h3>0–3 Hour Forecast</h3><small>15 min intervals</small></div>
+  <div class="forecast" id="forecast"></div>
+ </div>
+
+ <div class="panel box">
+  <div class="panelhead" style="padding:0 0 10px;border:0"><h3>Drainage Network Health</h3><small>Prototype graph model</small></div>
+  <div class="row"><span>Central Trunk</span><div class="progress"><span style="width:91%;background:var(--red)"></span></div><b style="color:var(--red)">91%</b></div>
+  <div class="row"><span>Market Branch</span><div class="progress"><span style="width:78%;background:#e0a400"></span></div><b style="color:#9b7200">78%</b></div>
+  <div class="row"><span>Station Branch</span><div class="progress"><span style="width:43%;background:var(--green)"></span></div><b style="color:var(--green)">43%</b></div>
+  <div class="row"><span>Outlet</span><div class="progress"><span style="width:66%;background:var(--blue)"></span></div><b style="color:var(--blue)">66%</b></div>
+ </div>
+
+ <div class="panel box route"><div class="status"><span class="statusdot"></span><b>Flood-safe routing available</b></div>
+  <p><b>Emergency route:</b> District Hospital → Station Road → East Bypass → Safe Zone</p>
+  <button class="routebtn" onclick="showPage('routes',document.querySelectorAll('.nav button')[3])">Open routing module</button>
+ </div>
+</div>
+</div>
+
+<div class="lower">
+<div class="panel form">
+ <div class="panelhead" style="padding:0 0 10px"><h3>Varanasi Rainfall Scenario</h3><small id="scenario">BASELINE</small></div>
+ <div class="formgrid">
+  <div class="field"><label>Rainfall intensity</label><input id="rainSlider" class="range" type="range" min="10" max="140" value="62" oninput="simulate(this.value)"><div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted)"><span>10</span><b id="rainValue">62 mm/hr</b><span>140</span></div></div>
+  <div class="field"><label>Forecast horizon</label><select onchange="simulate(rain)"><option>60 minutes</option><option>120 minutes</option><option>180 minutes</option></select></div>
+ </div>
+ <div class="pipeline"><div class="pipe"><b>1. Rainfall</b>Radar / gauge</div><div class="pipe"><b>2. GIS</b>DEM + roads</div><div class="pipe"><b>3. Runoff</b>Surface flow</div><div class="pipe"><b>4. Drainage</b>Capacity</div><div class="pipe"><b>5. Predict</b>Depth / risk</div><div class="pipe"><b>6. Act</b>Alert / route</div></div>
+</div>
+
+<div class="panel form">
+ <div class="panelhead" style="padding:0 0 10px"><h3>System Status</h3><small>Prototype services</small></div>
+ <div class="row"><span>Varanasi basemap</span><b style="color:var(--green)">ONLINE</b><span></span></div>
+ <div class="row"><span>Rainfall model</span><b style="color:var(--green)">READY</b><span></span></div>
+ <div class="row"><span>Flood model</span><b style="color:var(--green)">READY</b><span></span></div>
+ <div class="row"><span>Routing engine</span><b style="color:var(--green)">READY</b><span></span></div>
+</div>
+</div>
+</section>
+
+<section id="nowcast" class="page">
+<div class="pagehead"><div><h2>Varanasi 0–3 Hour Nowcast</h2><p>Time-stepped scenario showing how rainfall can evolve into street-level flood risk.</p></div><button class="btn primary" onclick="runNowcast()">Generate Forecast</button></div>
+<div class="panel box"><div class="tabs"><button class="active">Rainfall</button><button onclick="toast('Water-depth forecast layer selected')">Water Depth</button><button onclick="toast('Risk forecast layer selected')">Risk</button></div>
+<div style="padding:20px"><div id="nowcastChart" style="height:270px;display:flex;align-items:end;gap:8px;border-bottom:1px solid var(--line);padding:0 10px 25px"></div>
+<div class="route-summary"><h4>Interpretation</h4><p>As rainfall intensity rises, runoff generation increases. Where terrain concentrates flow and drainage capacity becomes constrained, the coupled model raises predicted water depth and risk. This demonstration uses simulated values; the production model would use validated rainfall, DEM, land-use and drainage inputs.</p></div></div></div>
+</section>
+
+<section id="drainage" class="page">
+<div class="pagehead"><div><h2>Varanasi Drainage Network Monitoring</h2><p>Node/pipe capacity view for the prototype catchment. Names and capacities below are demonstration values, not an official municipal asset inventory.</p></div><button class="btn" onclick="downloadCSV()">Export network data</button></div>
+<div class="panel box"><table class="alerttable"><thead><tr><th>Segment / Node</th><th>Type</th><th>Capacity</th><th>Current Load</th><th>Status</th><th>Recommended Action</th></tr></thead><tbody id="drainTable"></tbody></table></div>
+</section>
+
+<section id="routes" class="page">
+<div class="pagehead"><div><h2>Flood-Safe Route Planner — Varanasi</h2><p>Uses the scenario flood layer to avoid high-risk road segments.</p></div><button class="btn primary" onclick="calculateRoute()">Calculate Safe Route</button></div>
+<div class="panel box">
+<div class="formgrid"><div class="field"><label>Origin</label><select id="origin"><option>District Hospital</option><option>Varanasi Cantt</option><option>Assi Area</option><option>City Control Room</option></select></div>
+<div class="field"><label>Destination</label><select id="destination"><option>Emergency Safe Zone</option><option>Municipal Office</option><option>Relief Camp</option><option>Varanasi Cantt</option></select></div></div>
+<div id="routeResult" class="route-summary"><h4>Recommended route</h4><p>District Hospital → Station Road → East Bypass → Emergency Safe Zone</p><p><b>Decision rule:</b> avoid road segments whose predicted flood depth exceeds the configured safety threshold.</p></div>
+</div>
+</section>
+
+<section id="alerts" class="page">
+<div class="pagehead"><div><h2>Varanasi Alerts & Situation Report</h2><p>Prioritized locations for response planning in the demonstration scenario.</p></div><div class="actions"><button class="btn" onclick="downloadCSV()">Export CSV</button><button class="btn primary" onclick="printReport()">Print report</button></div></div>
+<div class="panel box"><table class="alerttable"><thead><tr><th>Time</th><th>Location</th><th>Predicted Depth</th><th>Risk</th><th>Recommended Action</th></tr></thead><tbody id="alertTable"></tbody></table></div>
+</section>
+
+<section id="about" class="page">
+<div class="pagehead"><div><h2>System Information</h2><p>Team Vertex architecture adapted for a Varanasi demonstration environment.</p></div></div>
+<div class="panel box">
+<h3 style="color:var(--navy)">Varanasi-specific system flow</h3>
+<div class="pipeline"><div class="pipe"><b>Rainfall</b>Spatial rainfall grid</div><div class="pipe"><b>Terrain</b>DEM / elevation</div><div class="pipe"><b>Urban</b>Roads + land use</div><div class="pipe"><b>Drainage</b>Nodes + pipes</div><div class="pipe"><b>Coupled model</b>Surface ↔ drainage</div><div class="pipe"><b>Action</b>Alerts + safe route</div></div>
+<h3 style="color:var(--navy);margin-top:25px">Technology layer</h3>
+<div class="pipeline"><div class="pipe"><b>Frontend</b>React / TypeScript / MapLibre</div><div class="pipe"><b>Backend</b>Python / FastAPI</div><div class="pipe"><b>Geo</b>GeoPandas / Rasterio / Shapely</div><div class="pipe"><b>Graph</b>NetworkX</div><div class="pipe"><b>Database</b>PostgreSQL / PostGIS</div><div class="pipe"><b>ML</b>PyTorch / Scikit-learn</div></div>
+<div class="route-summary"><h4>Important prototype boundary</h4><p>The basemap is real Varanasi OpenStreetMap data. The flood polygons, drainage assets, rainfall values and risk values displayed by this prototype are deliberately marked as scenario/demo data. Do not present them to judges as measured Varanasi flood observations.</p></div>
+</div>
+</section>
+</div>
+
+<div class="modal" id="dataModal"><div class="modalbox"><div class="modalhead"><b>Varanasi Prototype Data Sources</b><button class="close" onclick="closeModal('dataModal')">×</button></div><div class="modalbody">
+<p><b>Basemap:</b> OpenStreetMap centered on Varanasi.</p>
+<p><b>Rainfall:</b> radar / gauge / forecast grid can be connected through an API.</p>
+<p><b>Terrain:</b> Digital Elevation Model (DEM).</p>
+<p><b>Urban data:</b> roads and land-use layers.</p>
+<p><b>Drainage:</b> nodes, pipes, capacities and blockage indicators.</p>
+<p><b>Flood model:</b> rainfall → runoff → surface flow → drainage coupling → depth/risk.</p>
+<p><b>Prototype note:</b> scenario values are for demonstration and must be replaced/validated with authoritative local datasets before operational use.</p>
+</div></div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let rain=62, fontScale=1;
+const Varanasi=[25.3360,83.0077];
+const pages=['dashboard','nowcast','drainage','routes','alerts','about'];
+const names={dashboard:'Dashboard',nowcast:'0–3 hr Nowcast',drainage:'Drainage Network',routes:'Flood-Safe Routes',alerts:'Alerts & Reports',about:'System Information'};
+
+const map=L.map('map',{zoomControl:true}).setView(Varanasi,12);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+ attribution:'© OpenStreetMap contributors',
+ maxZoom:19
+}).addTo(map);
+
+const floodLayer=L.layerGroup().addTo(map);
+const pointsLayer=L.layerGroup().addTo(map);
+const drainLayer=L.layerGroup();
+
+function makeFloodZones(){
+ floodLayer.clearLayers();
+ L.circle([25.3175,83.0105],{radius:1150,color:'#c62828',weight:1,fillColor:'#c62828',fillOpacity:.20})
+  .bindPopup('<b>Scenario Flood Zone A</b><br>Predicted depth: 32 cm<br><span style="color:#c62828">HIGH RISK</span><br><small>Demonstration layer</small>').addTo(floodLayer);
+ L.circle([25.3265,83.0255],{radius:800,color:'#e0a400',weight:1,fillColor:'#e0a400',fillOpacity:.20})
+  .bindPopup('<b>Scenario Flood Zone B</b><br>Predicted depth: 14 cm<br><span style="color:#9b7200">MEDIUM RISK</span><br><small>Demonstration layer</small>').addTo(floodLayer);
+ L.circle([25.3040,83.0025],{radius:650,color:'#17824b',weight:1,fillColor:'#17824b',fillOpacity:.16})
+  .bindPopup('<b>Scenario Flood Zone C</b><br>Predicted depth: 3 cm<br><span style="color:#17824b">LOW RISK</span><br><small>Demonstration layer</small>').addTo(floodLayer);
+}
+function makePoints(){
+ pointsLayer.clearLayers();
+ const pts=[
+  [25.3175,83.0105,'Central Junction','32 cm','HIGH'],
+  [25.3265,83.0255,'Market Road','14 cm','MEDIUM'],
+  [25.3040,83.0025,'Station Road','3 cm','LOW']
+ ];
+ pts.forEach((p,i)=>{
+   const col=p[4]=='HIGH'?'#c62828':p[4]=='MEDIUM'?'#e0a400':'#17824b';
+   L.circleMarker([p[0],p[1]],{radius:8,color:'#fff',weight:3,fillColor:col,fillOpacity:1})
+    .bindPopup(`<b>${p[2]}</b><br>Predicted depth: <b>${p[3]}</b><br>Risk: <b style="color:${col}">${p[4]}</b><br><button onclick="inspect('${p[2]}','${p[3]}','${p[4]}')" style="margin-top:7px;border:1px solid #bbb;background:#fff;padding:5px 8px">Inspect</button>`)
+    .addTo(pointsLayer);
+ });
+}
+function makeDrainage(){
+ drainLayer.clearLayers();
+ const lines=[
+  [[25.326,83.020],[25.322,83.026],[25.317,83.032],[25.311,83.037]],
+  [[25.335,83.002],[25.327,83.008],[25.317,83.010],[25.308,83.014]],
+  [[25.309,82.997],[25.302,83.003],[25.296,83.010]]
+ ];
+ lines.forEach((coords,i)=>L.polyline(coords,{color:i===0?'#8b5cf6':'#0b63b6',weight:4,dashArray:'7 6',opacity:.8})
+   .bindPopup(`<b>Prototype drainage branch ${i+1}</b><br>Illustrative network layer — replace with verified municipal drainage GIS data.`).addTo(drainLayer));
+}
+makeFloodZones();makePoints();makeDrainage();
+
+function toggleLayer(type){
+ const layer=type==='flood'?floodLayer:type==='points'?pointsLayer:drainLayer;
+ const btn=document.getElementById(type+'Btn');
+ if(map.hasLayer(layer)){map.removeLayer(layer);btn.classList.remove('active');toast(type+' layer hidden')}
+ else{map.addLayer(layer);btn.classList.add('active');toast(type+' layer shown')}
+}
+function locateVaranasi(){map.setView(Varanasi,12);toast('Centered on Varanasi')}
+function showPage(id,btn){
+ pages.forEach(x=>document.getElementById(x).classList.remove('active'));
+ document.getElementById(id).classList.add('active');
+ document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+ if(btn)btn.classList.add('active');
+ document.getElementById('crumb').textContent=names[id];
+ window.scrollTo({top:0,behavior:'smooth'});
+ setTimeout(()=>map.invalidateSize(),100);
+ if(id==='nowcast')renderNowcast();
+ if(id==='drainage')renderDrainage();
+ if(id==='alerts')renderAlerts();
+}
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(window.tt);window.tt=setTimeout(()=>t.classList.remove('show'),2400)}
+function simulate(v){
+ rain=+v;
+ document.getElementById('rainValue').textContent=rain+' mm/hr';
+ document.getElementById('rainKpi').textContent=rain+' mm/hr';
+ const depth=Math.max(2,Math.round((rain-12)*.42));
+ const load=Math.min(99,Math.round(30+rain*.75));
+ const risk=depth>25?'HIGH':depth>12?'MEDIUM':'LOW';
+ document.getElementById('depthKpi').textContent=depth+' cm';
+ document.getElementById('loadKpi').textContent=load+'%';
+ document.getElementById('riskKpi').textContent=risk;
+ document.getElementById('riskKpi').style.color=risk==='HIGH'?'var(--red)':risk==='MEDIUM'?'var(--orange)':'var(--green)';
+ document.getElementById('roadsKpi').textContent=Math.max(0,Math.round(depth/5)+1);
+ document.getElementById('scenario').textContent=rain>95?'SEVERE SCENARIO':rain>65?'ELEVATED SCENARIO':'BASELINE';
+ renderForecast();renderNowcast();
+}
+function renderForecast(){
+ const el=document.getElementById('forecast');el.innerHTML='';
+ [rain*.55,rain*.68,rain*.82,rain*.93,rain*1.02,rain*1.08,rain*1.12].forEach((v,i)=>{
+  const b=document.createElement('div');b.className='bar';b.style.height=Math.min(115,20+v*.62)+'px';b.innerHTML=`<b>${Math.round(v)}</b><small>${['NOW','30m','60m','90m','120m','150m','180m'][i]}</small>`;el.appendChild(b)
+ });
+}
+function renderNowcast(){
+ const el=document.getElementById('nowcastChart');if(!el)return;el.innerHTML='';
+ [rain*.55,rain*.68,rain*.82,rain*.93,rain*1.02,rain*1.08,rain*1.12,rain*1.08,rain*.98,rain*.9,rain*.84,rain*.78].forEach((v,i)=>{
+  const b=document.createElement('div');b.style.flex='1';b.style.height=Math.min(235,20+v*1.45)+'px';b.style.background=i<5?'#1d73b8':'#76aeda';b.style.position='relative';b.title=`+${i*15} min: ${Math.round(v)} mm/hr`;el.appendChild(b)
+ });
+}
+function runNowcast(){toast('Varanasi 0–3 hour scenario nowcast generated');renderForecast();renderNowcast()}
+function inspect(name,depth,risk){toast(`${name}: ${depth} predicted • ${risk} risk`)}
+function calculateRoute(){
+ const o=document.getElementById('origin').value,d=document.getElementById('destination').value;
+ document.getElementById('routeResult').innerHTML=`<h4>Recommended safe route</h4><p>${o} → Station Road → East Bypass → ${d}</p><p><b>Decision rule:</b> high-risk scenario segments are avoided when predicted depth exceeds the configured safety threshold.</p>`;
+ toast('Safe route calculated for Varanasi scenario');
+}
+function renderDrainage(){
+ const rows=[
+ ['Central Trunk','Pipe','10.0 m³/s','91%','HIGH','Inspect / divert flow'],
+ ['Market Branch','Pipe','6.0 m³/s','78%','MEDIUM','Monitor'],
+ ['Station Branch','Pipe','8.0 m³/s','43%','LOW','Normal'],
+ ['Outlet','Outlet','15.0 m³/s','66%','NORMAL','Normal']
+ ];
+ document.getElementById('drainTable').innerHTML=rows.map(r=>`<tr><td><b>${r[0]}</b></td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td><td><span class="badge ${r[4]=='HIGH'?'bh':r[4]=='MEDIUM'?'bm':'bl'}">${r[4]}</span></td><td>${r[5]}</td></tr>`).join('');
+}
+function renderAlerts(){
+ const rows=[
+ ['12:05','Central Junction','32 cm','HIGH','Restrict access / dispatch response'],
+ ['12:05','Market Road','14 cm','MEDIUM','Monitor and prepare diversion'],
+ ['12:05','Station Road','3 cm','LOW','Normal monitoring'],
+ ['12:05','North Link','7 cm','LOW','Preferred emergency corridor']
+ ];
+ document.getElementById('alertTable').innerHTML=rows.map(r=>`<tr><td>${r[0]}</td><td><b>${r[1]}</b></td><td>${r[2]}</td><td><span class="badge ${r[3]=='HIGH'?'bh':r[3]=='MEDIUM'?'bm':'bl'}">${r[3]}</span></td><td>${r[4]}</td></tr>`).join('');
+}
+function downloadCSV(){
+ const csv='Location,Predicted Depth,Risk,Drainage Load,Recommended Action\\nCentral Junction,32 cm,HIGH,91%,Restrict access\\nMarket Road,14 cm,MEDIUM,78%,Monitor and prepare diversion\\nStation Road,3 cm,LOW,43%,Normal monitoring\\n';
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download='varanasi_flood_situation_report.csv';a.click();toast('CSV report exported')
+}
+function printReport(){window.print()}
+function openModal(id){document.getElementById(id).classList.add('show')}
+function closeModal(id){document.getElementById(id).classList.remove('show')}
+function changeFont(n){fontScale=Math.max(.9,Math.min(1.15,fontScale+n*.05));document.body.style.fontSize=(fontScale*16)+'px';toast('Text size updated')}
+renderForecast();renderNowcast();renderDrainage();renderAlerts();
+</script>
+</body>
+</html>
